@@ -12,7 +12,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.ts",
     "db:seed": "node --env-file-if-exists=.env.local scripts/import-seed.ts",
-    "bot:webhook": "node --env-file-if-exists=.env.local scripts/set-telegram-webhook.ts"
+    "bot:webhook": "node --env-file-if-exists=.env.local scripts/set-telegram-webhook.ts",
+    "login-link": "node --env-file-if-exists=.env.local scripts/login-link.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.4",
