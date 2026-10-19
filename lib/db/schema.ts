@@ -147,3 +147,21 @@ export const loginTokens = pgTable("login_tokens", {
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   usedAt: timestamp("used_at", { withTimezone: true }),
 });
+
+export const AI_FEATURES = ["plan", "first_step", "review", "coach"] as const;
+export type AiFeature = (typeof AI_FEATURES)[number];
+
+// One row per Claude call: what it was for and how many tokens it used.
+// The monthly cap (AI_MONTHLY_TOKEN_CAP) is checked against these sums.
+export const aiUsage = pgTable(
+  "ai_usage",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    feature: text("feature", { enum: AI_FEATURES }).notNull(),
+    model: text("model").notNull(),
+    inputTokens: integer("input_tokens").notNull(),
+    outputTokens: integer("output_tokens").notNull(),
+  },
+  (t) => [index("ai_usage_created_at_idx").on(t.createdAt)],
+);
