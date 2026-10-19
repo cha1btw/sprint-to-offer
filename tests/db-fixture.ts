@@ -10,7 +10,7 @@ export const at = (min: number, date = DATE) => minuteToUtc(date, min);
 
 export async function resetDb(db: Db) {
   await db.execute(
-    sql`truncate plan_blocks, day_plans, day_logs, tasks, weeks, fixed_blocks, settings, login_tokens, ai_usage`,
+    sql`truncate plan_blocks, day_plans, day_logs, tasks, weeks, fixed_blocks, settings, login_tokens, ai_usage, chat_messages`,
   );
   await db.insert(settings).values({ id: 1, startDate: "2026-10-19", deadline: "2027-02-28", wakeMin: 450, sleepMin: 1410 });
   await db.insert(weeks).values({

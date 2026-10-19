@@ -1,6 +1,7 @@
 import { Bot, type Context } from "grammy";
 import { aiErrorText, aiStatus } from "../ai/budget.ts";
 import type { ClaudeClient } from "../ai/client.ts";
+import { askCoach } from "../ai/coach.ts";
 import { firstStep } from "../ai/first-step.ts";
 import { eveningReview, reviewText } from "../ai/review.ts";
 import { createLoginToken } from "../auth.ts";
@@ -16,6 +17,8 @@ const HELP = [
   "/today — план на сегодня",
   "/replan — пересобрать день с текущего момента",
   "/review — разбор дня и цели на завтра (Claude)",
+  "",
+  "Любое другое сообщение уходит коучу Claude, если он подключён.",
   "/login — ссылка для входа в приложение",
 ].join("\n");
 
@@ -91,7 +94,18 @@ export function createBot(db: Db, token: string, ownerId: number, appUrl: string
     await replyNow(ctx);
   });
 
-  bot.on("message:text", (ctx) => ctx.reply(`Чат с Claude появится на следующем этапе.\n\n${HELP}`));
+  // Free text goes to the coach; an unknown command gets the help.
+  bot.on("message:text", async (ctx) => {
+    if (ctx.message.text.startsWith("/")) return ctx.reply(HELP);
+    if (!(await aiStatus(db, claude)).enabled) return ctx.reply(`Коуч Claude сейчас недоступен.\n\n${HELP}`);
+    await ctx.replyWithChatAction("typing");
+    try {
+      // Plain text: the answer is not escaped for Telegram HTML.
+      await ctx.reply((await askCoach(db, claude, ctx.message.text, "telegram")).slice(0, 4000));
+    } catch (error) {
+      await ctx.reply(aiErrorText(error));
+    }
+  });
 
   async function replanFrom(fromMin: number) {
     if (!(await getSettings(db))) return;

@@ -171,3 +171,16 @@ export const aiUsage = pgTable(
   },
   (t) => [index("ai_usage_created_at_idx").on(t.createdAt)],
 );
+
+// The coach chat, shared by the web and the Telegram bot.
+export const chatMessages = pgTable(
+  "chat_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    role: text("role", { enum: ["user", "assistant"] }).notNull(),
+    channel: text("channel", { enum: ["web", "telegram"] }).notNull(),
+    content: text("content").notNull(),
+  },
+  (t) => [index("chat_messages_created_at_idx").on(t.createdAt)],
+);

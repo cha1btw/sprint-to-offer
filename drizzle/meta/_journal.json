@@ -29,6 +29,13 @@
       "when": 1792436368572,
       "tag": "0003_ai_review",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792436467112,
+      "tag": "0004_coach_chat",
+      "breakpoints": true
     }
   ]
 }

@@ -1,9 +1,13 @@
 import { Nav } from "@/components/nav";
+import { aiStatus } from "@/lib/ai/budget";
+import { getClaude } from "@/lib/ai/client";
+import { getDb } from "@/lib/db";
 import { requireOwner } from "@/lib/session";
 
 // Everything inside (app) needs a valid session; signin and auth stay public.
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   await requireOwner();
+  const ai = await aiStatus(getDb(), getClaude());
   return (
     <>
       <main
@@ -16,7 +20,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       >
         {children}
       </main>
-      <Nav />
+      <Nav ai={ai.enabled} />
     </>
   );
 }

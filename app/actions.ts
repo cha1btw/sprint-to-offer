@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { SESSION_COOKIE, SESSION_DAYS, consumeLoginToken, signSession } from "@/lib/auth";
 import { getClaude } from "@/lib/ai/client";
 import { aiErrorText } from "@/lib/ai/budget";
+import { askCoach } from "@/lib/ai/coach";
 import { firstStep } from "@/lib/ai/first-step";
 import { planDayWithAi } from "@/lib/ai/plan";
 import { eveningReview } from "@/lib/ai/review";
@@ -86,6 +87,22 @@ export async function reviewWithClaude(): Promise<void> {
     redirect("/day?ai=review-failed");
   }
   refresh();
+}
+
+export type CoachState = { error?: string; sent?: number };
+
+export async function sendToCoach(_prev: CoachState, form: FormData): Promise<CoachState> {
+  await requireOwner();
+  const text = str(form, "text");
+  if (!text) return {};
+  try {
+    await askCoach(getDb(), getClaude(), text, "web");
+  } catch (error) {
+    revalidatePath("/coach");
+    return { error: aiErrorText(error) };
+  }
+  revalidatePath("/coach");
+  return { sent: Date.now() };
 }
 
 export type FirstStepState = { text?: string; error?: string };
