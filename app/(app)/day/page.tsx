@@ -1,7 +1,7 @@
 import { buildToday, changeBlock, replanToday, toggleTask, updateNote } from "@/app/actions";
 import { ActionButton, Card, KIND_STRIPE, TRACK_LABEL, kindLabel, span } from "@/components/ui";
 import { getDb } from "@/lib/db";
-import { getBlocks, getDayLog, getWeekFor, getWeekTasks } from "@/lib/planner/service";
+import { getBlocks, getDayLog, getDayPlan, getWeekFor, getWeekTasks } from "@/lib/planner/service";
 import { formatDayRu, kyivDate } from "@/lib/time";
 
 const STATUS_TEXT: Record<string, string> = { doing: "идёт", done: "сделано", skipped: "пропущено" };
@@ -10,7 +10,7 @@ export default async function DayPage() {
   const db = getDb();
   const now = new Date();
   const date = kyivDate(now);
-  const [blocks, log, week] = await Promise.all([getBlocks(db, date), getDayLog(db, date), getWeekFor(db, date)]);
+  const [blocks, log, week, plan] = await Promise.all([getBlocks(db, date), getDayLog(db, date), getWeekFor(db, date), getDayPlan(db, date)]);
   const tasks = week ? await getWeekTasks(db, week.n) : [];
   const t = now.getTime();
 
@@ -19,6 +19,9 @@ export default async function DayPage() {
       <header>
         <p className="text-xs font-semibold uppercase tracking-wider text-muted">План дня</p>
         <h1 className="text-2xl font-bold first-letter:uppercase">{formatDayRu(date)}</h1>
+        {plan?.source === "ai" && blocks.length > 0 && (
+          <p className="pt-1 text-sm text-muted">✨ План составил Claude{plan.aiComment ? `: ${plan.aiComment}` : ""}</p>
+        )}
       </header>
 
       <Card>

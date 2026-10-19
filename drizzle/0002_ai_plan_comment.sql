@@ -1,0 +1,1 @@
+ALTER TABLE "day_plans" ADD COLUMN "ai_comment" text;

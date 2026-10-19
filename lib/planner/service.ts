@@ -13,7 +13,7 @@ import {
   type BlockStatus,
 } from "../db/schema.ts";
 import { daysBetween, kyivDate, kyivMinutes, minuteToUtc, weekday } from "../time.ts";
-import { buildDay, type DayRules, type FixedInput } from "./build-day.ts";
+import { buildDay, type BuildInput, type DayRules, type DemandItem, type FixedInput, type PlannedBlock } from "./build-day.ts";
 import { buildDemand } from "./demand.ts";
 
 export type Settings = typeof settings.$inferSelect;
@@ -21,6 +21,7 @@ export type Block = typeof planBlocks.$inferSelect;
 export type DayLog = typeof dayLogs.$inferSelect;
 export type Week = typeof weeks.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
+export type PlanSource = (typeof dayPlans.$inferSelect)["source"];
 
 export const LOG_COUNTERS = ["lc", "apps", "net", "mock", "trainer"] as const;
 export type LogCounter = (typeof LOG_COUNTERS)[number];
@@ -100,11 +101,29 @@ export function currentAndNext(blocks: Block[], now: Date) {
   return { current, next };
 }
 
-type PlanOptions = { now?: Date; fromMin?: number };
+type PlanOptions = { now?: Date; fromMin?: number; replan?: boolean };
 
-// Builds today's plan, or rebuilds it from `fromMin` (default: now) while keeping
-// fixed blocks, finished blocks and the block in progress.
-export async function planDay(db: Db, date: string, options: PlanOptions & { replan?: boolean } = {}) {
+// Everything a plan for `date` is built from: rules, fixed blocks, what the day
+// should contain and, on a replan, the blocks that stay.
+export type DayContext = {
+  date: string;
+  now: Date;
+  rules: DayRules;
+  fixed: FixedInput[];
+  week: Week | null;
+  log: DayLog;
+  weekTotals: { lc: number; apps: number; net: number; focusMin: number; mock: number };
+  replan: boolean;
+  fromMin: number | undefined;
+  keep: Block[];
+  existing: Block[];
+  demand: DemandItem[];
+  // Kept blocks still ahead (a block in progress): they occupy time like fixed ones.
+  occupied: FixedInput[];
+  focusDoneMin: number;
+};
+
+export async function prepareDay(db: Db, date: string, options: PlanOptions = {}): Promise<DayContext> {
   const s = await getSettings(db);
   if (!s) throw new Error("Settings are missing: run npm run db:seed first.");
   const now = options.now ?? new Date();
@@ -115,47 +134,69 @@ export async function planDay(db: Db, date: string, options: PlanOptions & { rep
     getDayLog(db, date),
     getBlocks(db, date),
   ]);
-  const totals = week ? await getWeekTotals(db, week) : { lc: 0, apps: 0, net: 0, focusMin: 0, mock: 0 };
+  const weekTotals = week ? await getWeekTotals(db, week) : { lc: 0, apps: 0, net: 0, focusMin: 0, mock: 0 };
   const open = week ? (await getWeekTasks(db, week.n)).filter((t) => !t.done) : [];
 
-  const replan = options.replan && existing.length > 0;
+  const replan = Boolean(options.replan && existing.length > 0);
   // Today is always laid out from now: time that has passed cannot hold tasks.
   const fromMin = options.fromMin ?? (isToday ? kyivMinutes(now) : undefined);
   const keep = replan
     ? existing.filter((b) => b.kind === "fixed" || b.status !== "planned" || (fromMin !== undefined && b.endMin <= fromMin))
     : [];
-  const keepIds = new Set(keep.map((b) => b.id));
   const handled = new Set(keep.filter((b) => b.status !== "planned" && b.demandKey).map((b) => b.demandKey!));
 
   const demand = buildDemand({
     log,
     week: week ? { lcTopic: week.lcTopic, targets: week.targets } : null,
-    weekActual: totals,
+    weekActual: weekTotals,
     daysLeft: week ? daysBetween(date, week.endDate) + 1 : 1,
     tasks: open.map((t) => ({ id: t.id, track: t.track, title: t.title, sort: t.sort })),
   }).filter((d) => !handled.has(d.key));
 
-  // Blocks that stay (a block in progress) occupy time like fixed ones.
   const occupied: FixedInput[] = keep
     .filter((b) => b.kind !== "fixed" && b.endMin > (fromMin ?? 0))
     .map((b) => ({ title: b.title, kind: "study", startMin: b.startMin, endMin: b.endMin }));
 
-  const planned = buildDay({
+  return {
+    date,
+    now,
     rules: rulesOf(s),
-    fixed: [...fixed, ...occupied],
-    demand,
+    fixed,
+    week,
+    log,
+    weekTotals,
+    replan,
     fromMin,
+    keep,
+    existing,
+    demand,
+    occupied,
     focusDoneMin: isToday ? log.focusMin : 0,
-  });
-  const fresh = replan ? planned.filter((b) => b.kind !== "fixed") : planned;
+  };
+}
+
+export const buildInputOf = (ctx: DayContext): BuildInput => ({
+  rules: ctx.rules,
+  fixed: [...ctx.fixed, ...ctx.occupied],
+  demand: ctx.demand,
+  fromMin: ctx.fromMin,
+  focusDoneMin: ctx.focusDoneMin,
+});
+
+// Writes a plan built from `ctx`. On a replan the kept blocks stay and only
+// the new non-fixed blocks are inserted, in one transaction.
+export async function savePlan(db: Db, ctx: DayContext, planned: PlannedBlock[], source: PlanSource, aiComment: string | null = null) {
+  const { date, now } = ctx;
+  const keepIds = new Set(ctx.keep.map((b) => b.id));
+  const fresh = ctx.replan ? planned.filter((b) => b.kind !== "fixed") : planned;
 
   await db.transaction(async (tx) => {
     await tx
       .insert(dayPlans)
-      .values({ date, source: "auto" })
-      .onConflictDoUpdate({ target: dayPlans.date, set: { replannedAt: now } });
-    if (replan) {
-      for (const b of existing) {
+      .values({ date, source, aiComment })
+      .onConflictDoUpdate({ target: dayPlans.date, set: { source, aiComment, replannedAt: now } });
+    if (ctx.replan) {
+      for (const b of ctx.existing) {
         if (!keepIds.has(b.id)) await tx.delete(planBlocks).where(eq(planBlocks.id, b.id));
       }
     } else {
@@ -179,6 +220,18 @@ export async function planDay(db: Db, date: string, options: PlanOptions & { rep
     }
   });
   return getBlocks(db, date);
+}
+
+// Builds today's plan with the rule-based planner, or rebuilds it from
+// `fromMin` (default: now) while keeping fixed, finished and running blocks.
+export async function planDay(db: Db, date: string, options: PlanOptions = {}) {
+  const ctx = await prepareDay(db, date, options);
+  return savePlan(db, ctx, buildDay(buildInputOf(ctx)), "auto");
+}
+
+export async function getDayPlan(db: Db, date: string) {
+  const [row] = await db.select().from(dayPlans).where(eq(dayPlans.date, date));
+  return row ?? null;
 }
 
 async function ensureLog(db: Db, date: string) {

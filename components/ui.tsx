@@ -31,8 +31,10 @@ export function Card({ children, className = "" }: { children: React.ReactNode; 
   return <section className={`grid min-w-0 gap-3 rounded-2xl border border-line bg-surface p-4 ${className}`}>{children}</section>;
 }
 
-type Variant = "primary" | "default" | "ghost";
-const VARIANT: Record<Variant, string> = {
+export const BUTTON = "min-h-11 rounded-xl border px-4 py-2 font-medium transition active:scale-[0.98]";
+
+export type Variant = "primary" | "default" | "ghost";
+export const VARIANT: Record<Variant, string> = {
   primary: "bg-accent text-accent-ink border-accent",
   default: "bg-surface border-line",
   ghost: "bg-transparent border-transparent text-muted",
@@ -62,7 +64,7 @@ export function ActionButton({
       <button
         type="submit"
         aria-label={label}
-        className={`min-h-11 rounded-xl border px-4 py-2 font-medium transition active:scale-[0.98] ${VARIANT[variant]} ${className}`}
+        className={`${BUTTON} ${VARIANT[variant]} ${className}`}
       >
         {children}
       </button>

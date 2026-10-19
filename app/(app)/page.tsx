@@ -1,16 +1,33 @@
-import { bump, buildToday, changeBlock, replanToday, toggleAlgo } from "@/app/actions";
+import { bump, buildToday, changeBlock, planWithClaude, replanToday, toggleAlgo } from "@/app/actions";
+import { AiActionButton } from "@/components/ai";
 import { Countdown } from "@/components/countdown";
 import { ActionButton, Card, KIND_STRIPE, kindLabel, span } from "@/components/ui";
+import { aiStatus } from "@/lib/ai/budget";
+import { getClaude } from "@/lib/ai/client";
 import { getDb } from "@/lib/db";
 import { MINIMUM } from "@/lib/planner/demand";
-import { currentAndNext, getBlocks, getDayLog, getSettings, getWeekFor, type Block } from "@/lib/planner/service";
+import { currentAndNext, getBlocks, getDayLog, getDayPlan, getSettings, getWeekFor, type Block } from "@/lib/planner/service";
 import { daysBetween, formatDayRu, kyivDate } from "@/lib/time";
 
-export default async function NowPage() {
+const AI_NOTICE: Record<string, { text: string; good: boolean }> = {
+  plan: { text: "Claude составил день, правила плана соблюдены.", good: true },
+  fallback: { text: "План Claude не прошёл проверку или Claude не ответил, поэтому день собран обычным планировщиком.", good: false },
+};
+
+export default async function NowPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const db = getDb();
   const now = new Date();
   const date = kyivDate(now);
-  const [s, blocks, log, week] = await Promise.all([getSettings(db), getBlocks(db, date), getDayLog(db, date), getWeekFor(db, date)]);
+  const [s, blocks, log, week, plan, ai, params] = await Promise.all([
+    getSettings(db),
+    getBlocks(db, date),
+    getDayLog(db, date),
+    getWeekFor(db, date),
+    getDayPlan(db, date),
+    aiStatus(db, getClaude(), now),
+    searchParams,
+  ]);
+  const notice = typeof params.ai === "string" ? AI_NOTICE[params.ai] : undefined;
 
   if (!s) {
     return (
@@ -42,14 +59,24 @@ export default async function NowPage() {
         </p>
       </header>
 
+      {notice && (
+        <p role="status" className={`rounded-xl px-4 py-3 text-sm ${notice.good ? "bg-good-soft text-good" : "bg-surface-2 text-muted"}`}>
+          {notice.text}
+          {notice.good && plan?.aiComment ? ` ${plan.aiComment}` : ""}
+        </p>
+      )}
+
       {blocks.length === 0 ? (
         <Card>
           <h2 className="text-lg font-semibold">План на сегодня ещё не собран</h2>
           <p className="text-muted">Соберу день из твоего расписания, минимального дня и задач недели. Потом можно пересобрать в любой момент.</p>
-          <ActionButton action={buildToday} variant="primary">Собрать день</ActionButton>
+          <div className="flex flex-wrap gap-2">
+            <ActionButton action={buildToday} variant="primary">Собрать день</ActionButton>
+            {ai.enabled && <AiActionButton action={planWithClaude}>✨ Составить день с Claude</AiActionButton>}
+          </div>
         </Card>
       ) : (
-        <CurrentCard current={current} next={next} />
+        <CurrentCard current={current} next={next} aiEnabled={ai.enabled} />
       )}
 
       <Card>
@@ -92,7 +119,7 @@ export default async function NowPage() {
   );
 }
 
-function CurrentCard({ current, next }: { current: Block | null; next: Block | null }) {
+function CurrentCard({ current, next, aiEnabled }: { current: Block | null; next: Block | null; aiEnabled: boolean }) {
   return (
     <Card className="relative overflow-hidden">
       {current ? (
@@ -134,6 +161,7 @@ function CurrentCard({ current, next }: { current: Block | null; next: Block | n
       <div className="flex flex-wrap gap-2">
         <ActionButton action={replanToday} fields={{ delay: 30 }}>⏱ Сдвинуть на 30 мин</ActionButton>
         <ActionButton action={replanToday} fields={{ delay: 0 }}>🔁 Пересобрать</ActionButton>
+        {aiEnabled && <AiActionButton action={planWithClaude}>✨ Пересобрать с Claude</AiActionButton>}
       </div>
     </Card>
   );

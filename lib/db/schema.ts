@@ -91,6 +91,8 @@ export const dayPlans = pgTable("day_plans", {
   source: text("source", { enum: ["auto", "ai"] }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   replannedAt: timestamp("replanned_at", { withTimezone: true }),
+  // Claude's one-line reason for the plan; empty when the planner built it.
+  aiComment: text("ai_comment"),
 });
 
 export const BLOCK_KINDS = ["fixed", "focus", "break", "rest", "review"] as const;

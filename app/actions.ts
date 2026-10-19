@@ -5,6 +5,8 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { SESSION_COOKIE, SESSION_DAYS, consumeLoginToken, signSession } from "@/lib/auth";
+import { getClaude } from "@/lib/ai/client";
+import { planDayWithAi } from "@/lib/ai/plan";
 import { getDb } from "@/lib/db";
 import { BLOCK_STATUSES, FIXED_KINDS, fixedBlocks, settings, type BlockStatus, type FixedKind } from "@/lib/db/schema";
 import {
@@ -61,6 +63,15 @@ export async function replanToday(form: FormData) {
   const delay = Math.max(0, Math.min(180, Number(form.get("delay") ?? 0) || 0));
   await planDay(getDb(), kyivDate(), { replan: true, fromMin: kyivMinutes() + delay });
   refresh();
+}
+
+// "Составить день с Claude". Always ends with a saved plan: when Claude fails
+// or breaks a rule, the planner builds the day and the page says so.
+export async function planWithClaude() {
+  await requireOwner();
+  const result = await planDayWithAi(getDb(), getClaude(), kyivDate());
+  refresh();
+  redirect(result.source === "ai" ? "/?ai=plan" : "/?ai=fallback");
 }
 
 export async function changeBlock(form: FormData) {
