@@ -1,10 +1,10 @@
-# Sprint to Offer
+# Sprint to Offer: Claude Artifact tracker
 
 A personal tracker for a 19-week plan (19 Oct 2026 to 28 Feb 2027) to land a first
 Junior Full-stack offer or internship. It runs as a private Claude Artifact, so it opens
 from a phone and a computer and keeps its data in the Artifact's own database.
 
-The plan itself is in [`docs/plan.md`](docs/plan.md) (in Russian): role choice, course
+The plan itself is in [`docs/plan.md`](../docs/plan.md) (in Russian): role choice, course
 verdicts, week-by-week roadmap, milestones and the rules that keep the plan alive.
 
 ## What it does
@@ -19,7 +19,7 @@ verdicts, week-by-week roadmap, milestones and the rules that keep the plan aliv
 
 ## How it works
 
-`src/sprint.html` is one self-contained page (vanilla JS, no build step, no dependencies).
+`artifact/src/sprint.html` is one self-contained page (vanilla JS, no build step, no dependencies).
 It talks to the Claude Artifact runtime through `window.claude`:
 
 | Capability | Used for |
@@ -33,18 +33,18 @@ Because of that, the page is **not a standalone website**: outside claude.ai the
 ## Repository layout
 
 ```
-src/sprint.html          the tracker page (publish this as an Artifact)
-scripts/seeds.py         generates the initial documents: 19 weeks, 75 tasks, 126 questions
-scripts/build_preview.py wraps the page with an in-memory mock of window.claude for local checks
-docs/plan.md             the 19-week plan
+artifact/src/sprint.html          the tracker page (publish this as an Artifact)
+artifact/scripts/seeds.py         generates the initial documents: 19 weeks, 75 tasks, 126 questions
+artifact/scripts/build_preview.py wraps the page with an in-memory mock of window.claude for local checks
+docs/plan.md                      the 19-week plan
 ```
 
 ## Local preview
 
 ```bash
-python3 scripts/seeds.py          # writes seed/ (one JSON file per document)
-python3 scripts/build_preview.py  # writes preview/index.html
-python3 -m http.server 8765 --directory preview
+python3 artifact/scripts/seeds.py          # writes artifact/seed/ (one JSON file per document)
+python3 artifact/scripts/build_preview.py  # writes artifact/preview/index.html
+python3 -m http.server 8765 --directory artifact/preview
 ```
 
 Open http://localhost:8765. The mock keeps data in memory only and returns canned answers
@@ -52,5 +52,5 @@ for the Claude features, so it is for checking the UI, not for real use.
 
 ## Publishing
 
-Publish `src/sprint.html` as a private Artifact with the `db` capability (owner-only rules)
-and the `sample` capability, then load the files from `seed/` into its database.
+Publish `artifact/src/sprint.html` as a private Artifact with the `db` capability (owner-only rules)
+and the `sample` capability, then load the files from `artifact/seed/` into its database.
