@@ -26,17 +26,17 @@ export function nowText(current: Block | null, next: Block | null): string {
   return parts.join("\n\n");
 }
 
-export function blockKeyboard(b: Block | null): InlineKeyboard {
+// `ai` adds the Claude buttons; it is false without a key or over the monthly cap.
+export function blockKeyboard(b: Block | null, ai = false): InlineKeyboard {
   const kb = new InlineKeyboard();
   if (b && b.kind === "focus" && b.status === "planned") kb.text("▶️ Начать", `start:${b.id}`).text("⏭ Пропустить", `skip:${b.id}`).row();
   if (b && b.kind === "focus" && b.status === "doing") kb.text("✅ Готово", `done:${b.id}`).row();
+  if (ai && b && b.kind === "focus" && (b.status === "planned" || b.status === "doing")) kb.text("🧩 Не могу начать", `stuck:${b.id}`).row();
   return kb.text("⏱ Сдвинуть на 30 мин", "later").text("🔁 Пересобрать", "replan");
 }
 
-export function driftKeyboard(b: Block): InlineKeyboard {
-  return new InlineKeyboard()
-    .text("▶️ Начать сейчас", `start:${b.id}`)
-    .row()
-    .text("⏱ Сдвинуть на 30 мин", "later")
-    .text("🔁 Пересобрать", "replan");
+export function driftKeyboard(b: Block, ai = false): InlineKeyboard {
+  const kb = new InlineKeyboard().text("▶️ Начать сейчас", `start:${b.id}`);
+  if (ai) kb.text("🧩 Не могу начать", `stuck:${b.id}`);
+  return kb.row().text("⏱ Сдвинуть на 30 мин", "later").text("🔁 Пересобрать", "replan");
 }

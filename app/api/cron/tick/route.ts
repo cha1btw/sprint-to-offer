@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import type { InlineKeyboard } from "grammy";
+import { getClaude } from "@/lib/ai/client";
 import { ownerTelegramId } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { runTick } from "@/lib/planner/tick";
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
   const send = (text: string, keyboard?: InlineKeyboard) =>
     sendTelegramHtml(ownerId, text, keyboard ? { reply_markup: keyboard } : {});
   try {
-    return Response.json(await runTick(getDb(), send));
+    return Response.json(await runTick(getDb(), send, new Date(), getClaude()));
   } catch (error) {
     console.error("Tick failed.", error);
     return new Response("Error", { status: 500 });

@@ -6,6 +6,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { SESSION_COOKIE, SESSION_DAYS, consumeLoginToken, signSession } from "@/lib/auth";
 import { getClaude } from "@/lib/ai/client";
+import { aiErrorText } from "@/lib/ai/budget";
+import { firstStep } from "@/lib/ai/first-step";
 import { planDayWithAi } from "@/lib/ai/plan";
 import { getDb } from "@/lib/db";
 import { BLOCK_STATUSES, FIXED_KINDS, fixedBlocks, settings, type BlockStatus, type FixedKind } from "@/lib/db/schema";
@@ -72,6 +74,20 @@ export async function planWithClaude() {
   const result = await planDayWithAi(getDb(), getClaude(), kyivDate());
   refresh();
   redirect(result.source === "ai" ? "/?ai=plan" : "/?ai=fallback");
+}
+
+export type FirstStepState = { text?: string; error?: string };
+
+// "Не могу начать": the answer is shown under the button, nothing is saved.
+export async function askFirstStep(_prev: FirstStepState, form: FormData): Promise<FirstStepState> {
+  await requireOwner();
+  const id = str(form, "id");
+  if (!/^[0-9a-f-]{36}$/.test(id)) return { error: "Неизвестный блок." };
+  try {
+    return { text: await firstStep(getDb(), getClaude(), id) };
+  } catch (error) {
+    return { error: aiErrorText(error) };
+  }
 }
 
 export async function changeBlock(form: FormData) {

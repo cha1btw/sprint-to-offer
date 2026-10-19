@@ -1,4 +1,7 @@
 import { Bot, type Context } from "grammy";
+import { aiErrorText, aiStatus } from "../ai/budget.ts";
+import type { ClaudeClient } from "../ai/client.ts";
+import { firstStep } from "../ai/first-step.ts";
 import { createLoginToken } from "../auth.ts";
 import type { Db } from "../db/index.ts";
 import { currentAndNext, getBlocks, getSettings, planDay, setBlockStatus } from "../planner/service.ts";
@@ -16,7 +19,7 @@ const HELP = [
 
 const html = { parse_mode: "HTML" as const, link_preview_options: { is_disabled: true } };
 
-export function createBot(db: Db, token: string, ownerId: number, appUrl: string) {
+export function createBot(db: Db, token: string, ownerId: number, appUrl: string, claude: ClaudeClient | null = null) {
   const bot = new Bot(token);
 
   // Only the owner gets answers; everyone else is ignored without a reply.
@@ -52,6 +55,17 @@ export function createBot(db: Db, token: string, ownerId: number, appUrl: string
     await replyNow(ctx);
   });
 
+  bot.callbackQuery(/^stuck:([0-9a-f-]{36})$/, async (ctx) => {
+    // Answer the button at once: Telegram shows a spinner until we do.
+    await ctx.answerCallbackQuery({ text: "Спрашиваю Claude…" });
+    await ctx.replyWithChatAction("typing");
+    try {
+      await ctx.reply(`🧩 ${await firstStep(db, claude, ctx.match[1])}`);
+    } catch (error) {
+      await ctx.reply(aiErrorText(error));
+    }
+  });
+
   bot.callbackQuery("later", async (ctx) => {
     await replanFrom(kyivMinutes() + 30);
     await ctx.answerCallbackQuery({ text: "Сдвинул план на 30 минут" });
@@ -74,7 +88,8 @@ export function createBot(db: Db, token: string, ownerId: number, appUrl: string
   async function replyNow(ctx: Context) {
     const blocks = await getBlocks(db, kyivDate());
     const { current, next } = currentAndNext(blocks, new Date());
-    await ctx.reply(nowText(current, next), { ...html, reply_markup: blockKeyboard(current) });
+    const ai = (await aiStatus(db, claude)).enabled;
+    await ctx.reply(nowText(current, next), { ...html, reply_markup: blockKeyboard(current, ai) });
   }
 
   bot.catch((err) => console.error("Bot error", err.error));

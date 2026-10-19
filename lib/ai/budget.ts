@@ -71,3 +71,17 @@ export async function callClaude(
   if (!reply.text.trim()) throw new AiUnavailableError("bad_output");
   return reply.text.trim();
 }
+
+// What the owner reads when a Claude feature cannot answer.
+export function aiErrorText(error: unknown): string {
+  if (error instanceof AiUnavailableError) {
+    return {
+      no_key: "Claude не подключён: нет ANTHROPIC_API_KEY.",
+      cap: "Месячный лимит токенов Claude исчерпан, AI-функции вернутся в начале месяца.",
+      refusal: "Claude отказался отвечать на этот запрос.",
+      truncated: "Claude ответил не полностью, попробуй ещё раз.",
+      bad_output: "Claude прислал пустой ответ, попробуй ещё раз.",
+    }[error.reason];
+  }
+  return "Claude сейчас не отвечает, попробуй чуть позже.";
+}

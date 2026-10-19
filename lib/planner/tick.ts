@@ -3,6 +3,8 @@
 // in the morning if it is not built yet. Each block is announced at most once.
 import { and, eq, gt, inArray, isNull, lte } from "drizzle-orm";
 import type { InlineKeyboard } from "grammy";
+import { aiStatus } from "../ai/budget.ts";
+import type { ClaudeClient } from "../ai/client.ts";
 import { blockKeyboard, dayText, driftKeyboard, span } from "../bot/views.ts";
 import type { Db } from "../db/index.ts";
 import { dayPlans, planBlocks } from "../db/schema.ts";
@@ -15,7 +17,7 @@ export type Send = (text: string, keyboard?: InlineKeyboard) => Promise<boolean>
 const ANNOUNCE_WINDOW_MIN = 15; // a late scheduler run still announces the block
 const DRIFT_AFTER_MIN = 10;
 
-export async function runTick(db: Db, send: Send, now: Date = new Date()) {
+export async function runTick(db: Db, send: Send, now: Date = new Date(), claude: ClaudeClient | null = null) {
   const result = { planned: false, announced: 0, nudged: 0 };
   const s = await getSettings(db);
   if (!s) return result;
@@ -30,6 +32,9 @@ export async function runTick(db: Db, send: Send, now: Date = new Date()) {
   }
 
   const t = now.getTime();
+  // Asked once per tick, only when a message is about to go out.
+  let ai: boolean | undefined;
+  const aiOn = async () => (ai ??= (await aiStatus(db, claude, now)).enabled);
   const due = await db
     .select()
     .from(planBlocks)
@@ -49,7 +54,7 @@ export async function runTick(db: Db, send: Send, now: Date = new Date()) {
         : `Начинается: <b>${esc(b.title)}</b>\n${span(b)}`;
     // Mark first, so a slow Telegram call cannot cause a second message.
     await db.update(planBlocks).set({ notifiedAt: now }).where(eq(planBlocks.id, b.id));
-    if (await send(text, b.kind === "focus" ? blockKeyboard(b) : undefined)) result.announced++;
+    if (await send(text, b.kind === "focus" ? blockKeyboard(b, await aiOn()) : undefined)) result.announced++;
   }
 
   const drifting = await db
@@ -68,7 +73,7 @@ export async function runTick(db: Db, send: Send, now: Date = new Date()) {
   for (const b of drifting) {
     await db.update(planBlocks).set({ driftNotifiedAt: now }).where(eq(planBlocks.id, b.id));
     const text = `Блок «${esc(b.title)}» идёт уже ${DRIFT_AFTER_MIN} минут, а старта нет. Начни с пяти минут: открой задачу и сделай первый маленький шаг.`;
-    if (await send(text, driftKeyboard(b))) result.nudged++;
+    if (await send(text, driftKeyboard(b, await aiOn()))) result.nudged++;
   }
 
   return result;

@@ -1,6 +1,8 @@
 "use client";
 
+import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
+import type { FirstStepState } from "@/app/actions";
 import { BUTTON, VARIANT, type Variant } from "@/components/ui";
 
 function Submit({ children, pendingText, variant, className }: { children: React.ReactNode; pendingText: string; variant: Variant; className: string }) {
@@ -37,5 +39,21 @@ export function AiActionButton({
         {children}
       </Submit>
     </form>
+  );
+}
+
+export function FirstStep({ blockId, action }: { blockId: string; action: (prev: FirstStepState, form: FormData) => Promise<FirstStepState> }) {
+  const [state, formAction] = useActionState(action, {});
+  return (
+    <div className="grid gap-2">
+      <form action={formAction} className="contents">
+        <input type="hidden" name="id" value={blockId} />
+        <Submit pendingText="Claude думает…" variant="ghost" className="justify-self-start px-0 text-accent">
+          🧩 Не могу начать
+        </Submit>
+      </form>
+      {state.text && <p role="status" className="rounded-xl bg-accent-soft p-3">{state.text}</p>}
+      {state.error && <p role="alert" className="text-sm text-bad">{state.error}</p>}
+    </div>
   );
 }

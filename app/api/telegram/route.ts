@@ -1,10 +1,14 @@
 import { timingSafeEqual } from "node:crypto";
 import { webhookCallback } from "grammy";
+import { getClaude } from "@/lib/ai/client";
 import { ownerTelegramId } from "@/lib/auth";
 import { createBot } from "@/lib/bot";
 import { getDb } from "@/lib/db";
 
 let handler: ((request: Request) => Promise<Response>) | undefined;
+
+// Claude answers can take tens of seconds; the default limits are 10 s in grammY.
+export const maxDuration = 60;
 
 function hasValidSecret(request: Request, secret: string): boolean {
   const given = Buffer.from(request.headers.get("x-telegram-bot-api-secret-token") ?? "");
@@ -27,8 +31,9 @@ export async function POST(request: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  handler ??= webhookCallback(createBot(getDb(), token, ownerId, appUrl), "std/http", {
+  handler ??= webhookCallback(createBot(getDb(), token, ownerId, appUrl, getClaude()), "std/http", {
     secretToken: secret,
+    timeoutMilliseconds: 55_000,
   });
   return handler(request);
 }

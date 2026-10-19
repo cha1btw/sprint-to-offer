@@ -1,5 +1,5 @@
-import { bump, buildToday, changeBlock, planWithClaude, replanToday, toggleAlgo } from "@/app/actions";
-import { AiActionButton } from "@/components/ai";
+import { askFirstStep, bump, buildToday, changeBlock, planWithClaude, replanToday, toggleAlgo } from "@/app/actions";
+import { AiActionButton, FirstStep } from "@/components/ai";
 import { Countdown } from "@/components/countdown";
 import { ActionButton, Card, KIND_STRIPE, kindLabel, span } from "@/components/ui";
 import { aiStatus } from "@/lib/ai/budget";
@@ -147,6 +147,9 @@ function CurrentCard({ current, next, aiEnabled }: { current: Block | null; next
                 <ActionButton action={changeBlock} fields={{ id: current.id, status: "done" }} variant="primary" className="flex-1">✅ Готово</ActionButton>
               )}
             </div>
+          )}
+          {aiEnabled && current.kind === "focus" && (current.status === "planned" || current.status === "doing") && (
+            <FirstStep key={current.id} blockId={current.id} action={askFirstStep} />
           )}
           {current.kind === "rest" && <p className="text-sm text-muted">Это запланированный отдых: можно ютуб, без чувства вины. Когда он закончится, придёт напоминание.</p>}
         </>
