@@ -85,3 +85,16 @@ export function aiErrorText(error: unknown): string {
   }
   return "Claude сейчас не отвечает, попробуй чуть позже.";
 }
+
+// This month's tokens by feature, for the Settings screen.
+export async function monthByFeature(db: Db, now: Date = new Date()) {
+  return db
+    .select({
+      feature: aiUsage.feature,
+      calls: sql<number>`count(*)::int`,
+      tokens: sql<number>`sum(${aiUsage.inputTokens} + ${aiUsage.outputTokens})::int`,
+    })
+    .from(aiUsage)
+    .where(gte(aiUsage.createdAt, monthStart(now)))
+    .groupBy(aiUsage.feature);
+}
