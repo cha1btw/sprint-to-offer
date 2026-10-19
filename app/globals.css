@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+/* Colors are tokens so both themes stay in sync; Tailwind classes use them
+   through @theme inline (bg-surface, text-muted, border-line, ...). */
+:root {
+  --bg: #f3f4f0;
+  --surface: #ffffff;
+  --surface-2: #eceee8;
+  --ink: #16201b;
+  --muted: #5d6862;
+  --line: #daddd5;
+  --accent: #2f49d1;
+  --accent-ink: #ffffff;
+  --accent-soft: #e3e7fb;
+  --good: #1e7a4f;
+  --good-soft: #ddf0e5;
+  --warn: #8f6210;
+  --warn-soft: #f6ebd3;
+  --bad: #b23a26;
+  --rest: #2f7d6d;
+  --rest-soft: #dcefe9;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1311;
+    --surface: #161c19;
+    --surface-2: #1f2723;
+    --ink: #e6ece8;
+    --muted: #97a39c;
+    --line: #2a332e;
+    --accent: #8fa2ff;
+    --accent-ink: #0e1311;
+    --accent-soft: #232b4a;
+    --good: #5bc891;
+    --good-soft: #163024;
+    --warn: #e0b25a;
+    --warn-soft: #33291a;
+    --bad: #f08a73;
+    --rest: #6fcfb9;
+    --rest-soft: #16302a;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-good: var(--good);
+  --color-good-soft: var(--good-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-bad: var(--bad);
+  --color-rest: var(--rest);
+  --color-rest-soft: var(--rest-soft);
+  --font-sans: var(--font-golos), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, Menlo, monospace;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
