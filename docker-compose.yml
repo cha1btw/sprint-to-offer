@@ -1,0 +1,16 @@
+# Local Postgres for development and tests only (not used in production).
+# Start: docker compose up -d
+# One-time: docker compose exec db createdb -U sprint sprint_test
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: sprint
+      POSTGRES_PASSWORD: sprint
+      POSTGRES_DB: sprint
+    ports:
+      - "5434:5432"
+    volumes:
+      - sprint-pgdata:/var/lib/postgresql/data
+volumes:
+  sprint-pgdata:
