@@ -4,6 +4,7 @@ import { Countdown } from "@/components/countdown";
 import { ActionButton, Card, KIND_STRIPE, kindLabel, span } from "@/components/ui";
 import { aiStatus } from "@/lib/ai/budget";
 import { getClaude } from "@/lib/ai/client";
+import { goalsFor } from "@/lib/ai/review";
 import { getDb } from "@/lib/db";
 import { MINIMUM } from "@/lib/planner/demand";
 import { currentAndNext, getBlocks, getDayLog, getDayPlan, getSettings, getWeekFor, type Block } from "@/lib/planner/service";
@@ -18,13 +19,14 @@ export default async function NowPage({ searchParams }: { searchParams: Promise<
   const db = getDb();
   const now = new Date();
   const date = kyivDate(now);
-  const [s, blocks, log, week, plan, ai, params] = await Promise.all([
+  const [s, blocks, log, week, plan, ai, goals, params] = await Promise.all([
     getSettings(db),
     getBlocks(db, date),
     getDayLog(db, date),
     getWeekFor(db, date),
     getDayPlan(db, date),
     aiStatus(db, getClaude(), now),
+    goalsFor(db, date),
     searchParams,
   ]);
   const notice = typeof params.ai === "string" ? AI_NOTICE[params.ai] : undefined;
@@ -77,6 +79,18 @@ export default async function NowPage({ searchParams }: { searchParams: Promise<
         </Card>
       ) : (
         <CurrentCard current={current} next={next} aiEnabled={ai.enabled} />
+      )}
+
+      {goals.length > 0 && (
+        <Card>
+          <h2 className="font-semibold">Цели на сегодня</h2>
+          <p className="-mt-2 text-sm text-muted">Из вчерашнего разбора с Claude</p>
+          <ol className="grid list-decimal gap-1 pl-5">
+            {goals.map((g) => (
+              <li key={g}>{g}</li>
+            ))}
+          </ol>
+        </Card>
       )}
 
       <Card>

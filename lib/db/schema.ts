@@ -86,6 +86,9 @@ export const tasks = pgTable(
   (t) => [index("tasks_week_idx").on(t.week)],
 );
 
+// Claude's evening review: what happened today and three goals for tomorrow.
+export type DayReview = { summary: string; goals: string[]; createdAt: string };
+
 export const dayPlans = pgTable("day_plans", {
   date: date("date", { mode: "string" }).primaryKey(),
   source: text("source", { enum: ["auto", "ai"] }).notNull(),
@@ -93,6 +96,7 @@ export const dayPlans = pgTable("day_plans", {
   replannedAt: timestamp("replanned_at", { withTimezone: true }),
   // Claude's one-line reason for the plan; empty when the planner built it.
   aiComment: text("ai_comment"),
+  review: jsonb("review").$type<DayReview>(),
 });
 
 export const BLOCK_KINDS = ["fixed", "focus", "break", "rest", "review"] as const;

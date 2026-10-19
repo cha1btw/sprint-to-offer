@@ -8,6 +8,7 @@ import { buildInputOf, prepareDay, savePlan, type Block, type DayContext } from 
 import { formatDayRu } from "../time.ts";
 import { AiUnavailableError, callClaude } from "./budget.ts";
 import type { ClaudeClient } from "./client.ts";
+import { goalsFor } from "./review.ts";
 
 const AI_KINDS = ["focus", "break", "rest", "review"] as const;
 
@@ -172,6 +173,7 @@ export async function planDayWithAi(
   options: { now?: Date; goals?: string[] } = {},
 ): Promise<AiPlanResult> {
   const ctx = await prepareDay(db, date, { now: options.now, replan: true });
+  const goals = options.goals ?? (await goalsFor(db, date));
   let problems: string[];
   try {
     const text = await callClaude(
@@ -180,7 +182,7 @@ export async function planDayWithAi(
       "plan",
       {
         system: SYSTEM,
-        messages: [{ role: "user", content: planPrompt(ctx, options.goals) }],
+        messages: [{ role: "user", content: planPrompt(ctx, goals) }],
         maxTokens: 16_000,
         effort: "medium",
         schema: PLAN_SCHEMA,

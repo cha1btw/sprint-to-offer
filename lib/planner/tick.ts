@@ -5,12 +5,13 @@ import { and, eq, gt, inArray, isNull, lte } from "drizzle-orm";
 import type { InlineKeyboard } from "grammy";
 import { aiStatus } from "../ai/budget.ts";
 import type { ClaudeClient } from "../ai/client.ts";
+import { eveningReview, reviewText } from "../ai/review.ts";
 import { blockKeyboard, dayText, driftKeyboard, span } from "../bot/views.ts";
 import type { Db } from "../db/index.ts";
 import { dayPlans, planBlocks } from "../db/schema.ts";
 import { escapeTelegramHtml as esc } from "../telegram.ts";
 import { kyivDate, kyivMinutes } from "../time.ts";
-import { getSettings, planDay } from "./service.ts";
+import { getDayPlan, getSettings, planDay } from "./service.ts";
 
 export type Send = (text: string, keyboard?: InlineKeyboard) => Promise<boolean>;
 
@@ -18,7 +19,7 @@ const ANNOUNCE_WINDOW_MIN = 15; // a late scheduler run still announces the bloc
 const DRIFT_AFTER_MIN = 10;
 
 export async function runTick(db: Db, send: Send, now: Date = new Date(), claude: ClaudeClient | null = null) {
-  const result = { planned: false, announced: 0, nudged: 0 };
+  const result = { planned: false, announced: 0, nudged: 0, reviewed: false };
   const s = await getSettings(db);
   if (!s) return result;
   const date = kyivDate(now);
@@ -55,6 +56,15 @@ export async function runTick(db: Db, send: Send, now: Date = new Date(), claude
     // Mark first, so a slow Telegram call cannot cause a second message.
     await db.update(planBlocks).set({ notifiedAt: now }).where(eq(planBlocks.id, b.id));
     if (await send(text, b.kind === "focus" ? blockKeyboard(b, await aiOn()) : undefined)) result.announced++;
+    // The review block starts: Claude sums up the day, once per day.
+    if (b.kind === "review" && (await aiOn()) && !(await getDayPlan(db, b.date))?.review) {
+      try {
+        await send(reviewText(await eveningReview(db, claude, b.date, now)));
+        result.reviewed = true;
+      } catch (error) {
+        console.error("Evening review failed.", error instanceof Error ? error.message : error);
+      }
+    }
   }
 
   const drifting = await db

@@ -1,16 +1,26 @@
-import { buildToday, changeBlock, replanToday, toggleTask, updateNote } from "@/app/actions";
+import { buildToday, changeBlock, replanToday, reviewWithClaude, toggleTask, updateNote } from "@/app/actions";
+import { AiActionButton } from "@/components/ai";
 import { ActionButton, Card, KIND_STRIPE, TRACK_LABEL, kindLabel, span } from "@/components/ui";
+import { aiStatus } from "@/lib/ai/budget";
+import { getClaude } from "@/lib/ai/client";
 import { getDb } from "@/lib/db";
 import { getBlocks, getDayLog, getDayPlan, getWeekFor, getWeekTasks } from "@/lib/planner/service";
 import { formatDayRu, kyivDate } from "@/lib/time";
 
 const STATUS_TEXT: Record<string, string> = { doing: "идёт", done: "сделано", skipped: "пропущено" };
 
-export default async function DayPage() {
+export default async function DayPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const db = getDb();
   const now = new Date();
   const date = kyivDate(now);
-  const [blocks, log, week, plan] = await Promise.all([getBlocks(db, date), getDayLog(db, date), getWeekFor(db, date), getDayPlan(db, date)]);
+  const [blocks, log, week, plan, ai, params] = await Promise.all([
+    getBlocks(db, date),
+    getDayLog(db, date),
+    getWeekFor(db, date),
+    getDayPlan(db, date),
+    aiStatus(db, getClaude(), now),
+    searchParams,
+  ]);
   const tasks = week ? await getWeekTasks(db, week.n) : [];
   const t = now.getTime();
 
@@ -101,6 +111,31 @@ export default async function DayPage() {
               </li>
             ))}
           </ul>
+        </Card>
+      )}
+
+      {plan && (plan.review || ai.enabled) && (
+        <Card>
+          <h2 className="font-semibold">Разбор дня</h2>
+          {plan.review ? (
+            <>
+              <p>{plan.review.summary}</p>
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-muted">Цели на завтра</h3>
+              <ol className="grid list-decimal gap-1 pl-5">
+                {plan.review.goals.map((g) => (
+                  <li key={g}>{g}</li>
+                ))}
+              </ol>
+            </>
+          ) : (
+            <p className="text-sm text-muted">Вечером, в блок разбора, Claude подведёт итог дня и предложит три цели на завтра. Можно запросить раньше.</p>
+          )}
+          {params.ai === "review-failed" && <p role="alert" className="text-sm text-bad">Claude не смог сделать разбор, попробуй позже.</p>}
+          {ai.enabled && (
+            <AiActionButton action={reviewWithClaude} className="justify-self-start">
+              {plan.review ? "✨ Обновить разбор" : "✨ Разбор с Claude"}
+            </AiActionButton>
+          )}
         </Card>
       )}
 

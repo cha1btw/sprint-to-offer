@@ -2,9 +2,10 @@ import { Bot, type Context } from "grammy";
 import { aiErrorText, aiStatus } from "../ai/budget.ts";
 import type { ClaudeClient } from "../ai/client.ts";
 import { firstStep } from "../ai/first-step.ts";
+import { eveningReview, reviewText } from "../ai/review.ts";
 import { createLoginToken } from "../auth.ts";
 import type { Db } from "../db/index.ts";
-import { currentAndNext, getBlocks, getSettings, planDay, setBlockStatus } from "../planner/service.ts";
+import { currentAndNext, getBlocks, getDayPlan, getSettings, planDay, setBlockStatus } from "../planner/service.ts";
 import { kyivDate, kyivMinutes } from "../time.ts";
 import { blockKeyboard, dayText, nowText } from "./views.ts";
 
@@ -14,6 +15,7 @@ const HELP = [
   "/now — что делать прямо сейчас",
   "/today — план на сегодня",
   "/replan — пересобрать день с текущего момента",
+  "/review — разбор дня и цели на завтра (Claude)",
   "/login — ссылка для входа в приложение",
 ].join("\n");
 
@@ -45,6 +47,17 @@ export function createBot(db: Db, token: string, ownerId: number, appUrl: string
   bot.command("replan", async (ctx) => {
     await replanFrom(kyivMinutes());
     await replyNow(ctx);
+  });
+
+  bot.command("review", async (ctx) => {
+    const date = kyivDate();
+    if (!(await getDayPlan(db, date))) return ctx.reply("Сегодня плана не было, разбирать нечего.");
+    await ctx.replyWithChatAction("typing");
+    try {
+      await ctx.reply(reviewText(await eveningReview(db, claude, date)), html);
+    } catch (error) {
+      await ctx.reply(aiErrorText(error));
+    }
   });
 
   bot.callbackQuery(/^(start|done|skip):([0-9a-f-]{36})$/, async (ctx) => {

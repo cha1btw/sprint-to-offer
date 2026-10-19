@@ -9,6 +9,7 @@ import { getClaude } from "@/lib/ai/client";
 import { aiErrorText } from "@/lib/ai/budget";
 import { firstStep } from "@/lib/ai/first-step";
 import { planDayWithAi } from "@/lib/ai/plan";
+import { eveningReview } from "@/lib/ai/review";
 import { getDb } from "@/lib/db";
 import { BLOCK_STATUSES, FIXED_KINDS, fixedBlocks, settings, type BlockStatus, type FixedKind } from "@/lib/db/schema";
 import {
@@ -74,6 +75,17 @@ export async function planWithClaude() {
   const result = await planDayWithAi(getDb(), getClaude(), kyivDate());
   refresh();
   redirect(result.source === "ai" ? "/?ai=plan" : "/?ai=fallback");
+}
+
+export async function reviewWithClaude(): Promise<void> {
+  await requireOwner();
+  try {
+    await eveningReview(getDb(), getClaude(), kyivDate());
+  } catch (error) {
+    console.error("Evening review failed.", error instanceof Error ? error.message : error);
+    redirect("/day?ai=review-failed");
+  }
+  refresh();
 }
 
 export type FirstStepState = { text?: string; error?: string };
