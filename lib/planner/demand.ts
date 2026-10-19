@@ -30,6 +30,15 @@ const TASK_MINUTES: Record<Track, number> = {
 const TRACK_ORDER: Track[] = ["job", "fund", "proj", "prep", "py", "algo", "misc"];
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+export function plural(n: number, one: string, few: string, many: string): string {
+  const a = Math.abs(n) % 100;
+  const b = a % 10;
+  if (a > 10 && a < 20) return many;
+  if (b > 1 && b < 5) return few;
+  if (b === 1) return one;
+  return many;
+}
 const perDay = (target: number, actual: number, daysLeft: number) =>
   Math.ceil(Math.max(0, target - actual) / Math.max(1, daysLeft));
 
@@ -41,9 +50,10 @@ export function buildDemand(input: DemandInput): DemandItem[] {
   const lcToday = targets ? perDay(targets.lc, input.weekActual.lc, input.daysLeft) : 0;
   const algoMinutes = algoDone ? lcToday * 45 : clamp(lcToday * 45, MINIMUM.algoMin, 90);
   if (algoMinutes > 0) {
+    const count = lcToday ? ` · ${lcToday} ${plural(lcToday, "задача", "задачи", "задач")}` : "";
     items.push({
       key: "algo",
-      title: `Алгоритмы${input.week ? `: ${input.week.lcTopic}` : ""}${lcToday ? ` (${lcToday} задач)` : ""}`,
+      title: `Алгоритмы${input.week ? `: ${input.week.lcTopic}` : ""}${count}`,
       track: "algo",
       minutes: clamp(algoMinutes, 30, 90),
     });

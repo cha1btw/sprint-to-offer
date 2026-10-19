@@ -150,7 +150,8 @@ export function buildDay(input: BuildInput): PlannedBlock[] {
       budget -= len;
       streak += len;
       item.remaining -= len;
-      if (item.remaining < MIN_TAIL) queue.shift();
+      // What is left is too short for its own block later in the day: let it go.
+      if (item.remaining < MIN_BLOCK) queue.shift();
       lastWasFocus = true;
     }
 

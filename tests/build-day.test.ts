@@ -119,6 +119,19 @@ describe("buildDay", () => {
     assert.deepEqual(validatePlan(plan2, rules, streakFixed), []);
   });
 
+  test("does not split a task into a scrap shorter than a block", () => {
+    // 30 free minutes before the evening review, then the rest of the evening.
+    const evening = buildDay({
+      rules,
+      fixed: [],
+      demand: [{ key: "algo", title: "Алгоритмы", track: "algo", minutes: 45 }],
+      fromMin: rules.sleepMin - 105,
+    });
+    const algo = evening.filter((b) => b.demandKey === "algo");
+    assert.equal(algo.length, 1);
+    assert.equal(algo[0].endMin - algo[0].startMin, 30);
+  });
+
   test("replanning lays out only the time after now", () => {
     const now = 14 * 60 + 2;
     const replan = buildDay({ rules, fixed, demand, fromMin: now });
@@ -176,6 +189,7 @@ describe("buildDemand", () => {
       tasks: [],
     });
     assert.match(d.find((x) => x.key === "apps")!.title, /4 шт/);
+    assert.match(d.find((x) => x.key === "algo")!.title, /3 задачи$/);
     assert.equal(d.find((x) => x.key === "algo")!.minutes, 90);
   });
 });
