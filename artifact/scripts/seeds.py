@@ -58,7 +58,7 @@ TASKS = {
         ("misc", "Big Tech: требования 5–8 программ на лето 2027 (Google, Amazon, Microsoft, NVIDIA, JetBrains, Bloomberg)"),
         ("algo", "Диагностика: 3 LeetCode Easy без AI, засечь время"),
         ("fund", "Нарисовать auth-flow Request Desk (логин → JWT → guard → роли), объяснить вслух, сверить с кодом"),
-        ("misc", "Заморозить новые проекты до 28.02, идеи складывать в «Потом»"),
+        ("misc", "Свои проекты: до 6 ч в неделю + 3 ч в выходные, только после минимального дня"),
     ],
     2: [
         ("fund", "javascript.info: типы, приведение, scope, замыкания, hoisting"),
